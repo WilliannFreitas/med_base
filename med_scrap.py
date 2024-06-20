@@ -1,12 +1,18 @@
+import os
 import time
+from pathlib import Path
+import pandas as pd
 import pyautogui
 from playwright.sync_api import sync_playwright
 
 # Instancia novo navegador
 with sync_playwright() as p:
-    # Abrir navegador coom devtools
+    # Abrir navegador com devtools
     navegador = p.chromium.launch(headless=False, devtools=True)
     page = navegador.new_page()
+
+    # URL da página inicial
+    base_url = "https://www.doctoralia.com.br/psiquiatra/florianopolis"
 
     # Acesso à página do Olos
     page.goto("https://www.doctoralia.com.br/psicologo/florianopolis")
@@ -14,73 +20,80 @@ with sync_playwright() as p:
     # Espera a página carregar completamente
     page.wait_for_load_state('networkidle')
 
-    #Clicar na aba Network
-    pyautogui.moveTo(1020, 177, duration=1)  # Move o cursor para (x2, y2) em 1 segundo
-    pyautogui.click()
+    # Contador para controlar as iterações
+    count = 0
 
-    #clicar em
-    pyautogui.moveTo(1038, 213, duration=1)  # Move o cursor para (x2, y2) em 1 segundo
-    pyautogui.click()
+    # Lista para armazenar os dados coletados
+    data_list = []
 
+    # Loop para coletar dados de todas as páginas
+    while count < 50:
+        names = page.query_selector_all('span[data-tracking-id="result-card-name"]')
+        specializations = page.query_selector_all('span[data-test-id="doctor-specializations"]')
+        crms = page.query_selector_all('span.h5.font-weight-normal.mb-0')
+        addresses = page.query_selector_all(
+            'xpath=/html/body/div[2]/div[3]/main/div[2]/div[1]/div[3]/div[4]/ul/li/div/div/div/div[1]/div[4]/div[2]/div[1]/div[2]/p[1]/span[1]')
+        areas_de_atuacao = page.query_selector_all(
+            'xpath=/html/body/div[2]/div[3]/main/div[2]/div[1]/div[3]/div[4]/ul/li[1]/div/div/div/div[1]/div[1]/div/div[2]/div[2]/span/span')
+        # valores_consulta = page.query_selector_all(
+        #     'xpath=/html/body/div[2]/div[3]/main/div[2]/div[1]/div[3]/div[4]/ul/li[1]/div/div/div/div[1]/div[4]/div[2]/div[2]/div[2]/p[2]')
 
-    # # Manter o navegador aberto para inspeção
-    # input("Pressione Enter para fechar...")
-    # navegador.close()
+        # Verificar se o número de elementos correspondentes é o mesmo para todos os seletores
+        num_elements = min(len(names), len(specializations), len(crms), len(addresses), len(areas_de_atuacao))
 
+        for i in range(num_elements):
+            # Coletar os dados
+            name_text = names[i].inner_text()
+            specialization_text = specializations[i].inner_text()
+            crm_text = crms[i].inner_text()
+            address_text = addresses[i].inner_text()
+            area_text = areas_de_atuacao[i].inner_text() if i < len(areas_de_atuacao) else ""
 
-    time.sleep(8)
+            # Adicionar os dados à lista
+            data_list.append({
+                "Nome": name_text,
+                "Especialização": specialization_text,
+                "CRM": crm_text,
+                "Endereço": address_text,
+                "Áreas de Atuação": area_text,
+            })
 
-    # Captura e exibe a posição do cursor
-    x, y = pyautogui.position()
-    print(f'Coordenadas: X={x}, Y={y}')
+            # Imprimir os dados para depuração
+            print(f"Nome: {name_text}")
+            print(f"Especialização: {specialization_text}")
+            print(f"CRM: {crm_text}")
+            print(f"Endereço: {address_text}")
+            print(f"Áreas de Atuação: {area_text}")
+            print()  # Adicionar uma linha em branco entre os registros
 
+        # Incrementar o contador
+        count += 1
 
+        # Verificar se existe um elemento de paginação para avançar para a próxima página
+        next_page_button = page.query_selector('span.d-none.d-md-inline-block.mr-0-5:text("Próximo")')
 
+        if next_page_button:
+            # Clicar no botão de próxima página
+            next_page_button.click()
+            # Esperar um momento para a próxima página carregar completamente (ajuste conforme necessário)
+            page.wait_for_load_state("networkidle")
+        else:
+            # Se não houver mais páginas, sair do loop
+            break
 
-    
-    ##Preenche o campo 'Usuário' e 'Senha' com as credencias
-    # page.fill("input[name='UserTxt']",'pessoalize.monitoracao')
-    # page.fill("input[name='Password']",'@Pslz2023Planj')
-    # page.click("input[name='BtnOK']")
-    #
-    # ##Acessa os campos do menu conforme os nomes das variáveis
-    # selectRelatorio = page.locator('#ctl00_PageMenu_LinkButton4')
-    # selectRelatorio.click()
-    #
-    # selectModulosRelatorio = page.locator('#PageMenu_lblMenuLatReports')
-    # selectModulosRelatorio.click()
-    #
-    # selectVisaoAgente = page.locator('#PageMenu_menu1__labelMenuTitle_reports_agent_view')
-    # selectVisaoAgente.click()
-    #
-    # selectAgente = page.locator('#PageMenu_menu1_submenu_reports_agent_agent')
-    # selectAgente.click()
-    #
-    # ##page.fill("input[name='ctl00$PageContent$search1$StartDate']", 'data_atual')
-    #
-    # ##Preenche o campo 'Data Inicial *' com o variável 'data_formatada'
-    # DataInicial = page.locator('#PageContent_search1_StartDate')
-    # DataInicial.fill(data_formatada)
-    #
-    # ##Preenche o campo 'Data Final *' com o variável 'data_formatada'
-    # DataInicial = page.locator('#PageContent_search1_EndDate')
-    # DataInicial.fill(data_formatada)
-    #
-    # ##Seleciona o campo template, clica seta para baixo até chegar na opção: 'Dados Faturamento CA v2' e clica Enter.
-    # selectTemplate = page.locator('#PageContent_search1_DDTemplate')
-    # selectTemplate.click()
-    # page.press('#PageContent_search1_DDTemplate', 'ArrowDown')
-    # page.press('#PageContent_search1_DDTemplate', 'ArrowDown')
-    # page.press('#PageContent_search1_DDTemplate', 'ArrowDown')
-    # page.press('#PageContent_search1_DDTemplate', 'ArrowDown')
-    # page.press('#PageContent_search1_DDTemplate', 'ArrowDown')
-    # page.press('#PageContent_search1_DDTemplate', 'Enter')
-    #
-    # ##Seleciona o campo Organização, clica seta para baixo até chegar na opção: 'Pessoalize' e clica Enter.
-    # selectTemplate = page.locator('#PageContent_search1_DDCompany')
-    # selectTemplate.click()
-    # page.press('#PageContent_search1_DDCompany', 'ArrowDown')
-    # page.press('#PageContent_search1_DDCompany', 'ArrowDown')
-    # page.press('#PageContent_search1_DDCompany', 'Enter')
-    #
-    # page.wait_for_timeout(5000)
+    # Salvar os dados em um arquivo de texto
+    file_path = "dados_doctoralia.txt"
+    with open(file_path, "w") as file:
+        for data in data_list:
+            file.write(f"Nome: {data['Nome']}\n")
+            file.write(f"Especialização: {data['Especialização']}\n")
+            file.write(f"CRM: {data['CRM']}\n")
+            file.write(f"Endereço: {data['Endereço']}\n")
+            file.write(f"Áreas de Atuação: {data['Áreas de Atuação']}\n")
+            file.write("\n")  # Adicionar uma linha em branco entre os registros
+
+    print(f"Dados salvos em '{file_path}'")
+
+# Captura e exibe a posição do cursor
+x, y = pyautogui.position()
+print(f'Coordenadas: X={x}, Y={y}')
